@@ -415,7 +415,7 @@ class PiDP_ControlPanel:
 			if isinstance(printItems, tuple): printItems = list(printItems)
 			self._print(printItems)
 
-	def _exit(self, *msgs=None):		# to be used in exceptions that should be fatal.
+	def _exit(self, *msgs):		# to be used in exceptions that should be fatal.
 		if msgs: self._print(msgs)
 		GPIO.cleanup()
 		exit()
