@@ -36,13 +36,13 @@ switchedLeds = {
 # let's roll some lights across the Memory Buffer (dmb) row, which is bank 2.
 # We'll use direct access to the ledState property to do this.
 bank = 2
-for i in range(0,13):
+for i in range(0,14):
 	#dmb = bank 2
 	if i < 12:
 		CP.ledState[bank][i] = PiDP_CP.LED_ON
 	if i > 1:
 		CP.ledState[bank][i-2] = PiDP_CP.LED_OFF
-	CP.lightLeds(bank, pause=100)
+	CP.lightLeds(bank, pause=100000)
 
 print('Ready...')
 # ------------------------------------------------------------------------------
