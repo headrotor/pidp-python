@@ -1,5 +1,7 @@
-'''
+"""
 PiDP control panel - NON-THREADED VERSION
+
+Version 1.01
 
 THIS WORKS GREAT EXCEPT FOR BEING EXCEPTIONALLY CRASHY.
 PRPBABLY SOMETHING TO DO WITH TURNING ALL THOSE GPIOs FROM INPUT TO OUTPUT
@@ -17,6 +19,13 @@ For use with Oscar Vermeulen's PiDP kit. Every home should have one. Go here:
 PYTHON 3 ONLY.
 
 NB: NEEDS TO BE RUN AS ROOT !
+
+BUGS!
+	* setLedDataBank() doesn't with with the mb bank. Huh?
+
+Version history:
+	30-Mar-2016	1.01	Added setLedDataBank(), switchSetValue(), switchIsOn()
+	29-Mar-2016	1.00	Initial release
 
 VERY IMPORTANT: This is a work-in-progress by a non-programmer dilettante.
 Use at your own risk. Seriously. If, as a result of using this code,
@@ -77,7 +86,10 @@ lightLeds(<bank>, [<pause>])	Briefly flash the LEDs in a specific bank (0-7). Th
 					overrides the global ledDelay setting in the constructor. It causes
 					this routine to pause when the LEDs are lit. But it is blocking and
 					means only one LED bank is lit.
-setLedState(<name>)	Set the state (on/off) of a specific LED, referred to by name.
+setLedDataBank(<bank>, <value>)	Set the whole row of 12 LEDs for a given data bank (can be
+					refered to by name - eg, 'pc' - or row number) to show a binary
+					representation of a value 0-4095.
+setLedState(<name>)	Set the state (on/off) of a specific LED, referred to by name (eg, 'pc1').
 					Doesn't actually light it up, just changes its setting in
 					ledState.
 
@@ -97,22 +109,27 @@ scanAllSwitches()	A wrapper to scanSwitches which reads all the switches. Return
 					True if any of the switches has changed since the last scan.
 scanSwitches(<bank>)	Read the positions of the switches in a specific bank (0-2)
 					and store the results in switchState. If you only want to use one
-					bank of switches, use this in your program's loop, as it'll be
+					bank of switches, use this in your program's loop, as it will be
 					quicker. Doesn't have to be used in a loop - you can use this or
 					scanAllSwitches() ad hoc just to refresh switchState when needed.
 					Returns True if a switch in this bank has changed since the last
 					scan.
+switchIsOn(<name>)	Wrapper to switchSetting(). Returns true if named switch is in the
+					on (down) position.
 switchPosition(<name>)	Returns the state of the named switch according to switchState.
+switchSetValue()	Get a value for the positions a set of switches - 'data_field'
+					(values 0-7), 'inst_field' (0-7) or 'swreg' (0-4095).
 switchSetting(<name>)	Reads the current physical position of a named switch.
 					Doesn't update switchState. I don't know why. It might do someday.
 
 TO DO:
 	* Method to pass in a list of LED names to set them on/off
 	* Method to pass in a list of switch names and have returned a list showing switch state
-'''
+"""
 
 import RPi.GPIO as GPIO
 import time
+import math
 
 LED_ON = GPIO.LOW				# Just to make stuff easier to read. My eyes are old.
 LED_OFF = GPIO.HIGH
@@ -129,7 +146,8 @@ class PiDP_ControlPanel:
 	# ***********************************************************************************
 	# ***  INITIALISER / CONSTRUCTOR call it what you will                            ***
 	# ***********************************************************************************
-	def __init__(self, boardCfg='std', ledDelay=None, verbose=False, debug=False):
+	def __init__(self, boardCfg='std', ledDelay=100, verbose=False, debug=False):
+
 		self._ledDelay = ledDelay
 		self._verbose = verbose
 		self._debug = debug
@@ -152,21 +170,21 @@ class PiDP_ControlPanel:
 		self._ledRowPins = [38, 40, 15, 16, 18, 22, 37, 13]
 		self.ledBanks = [
 			# Bank 0 (led1)
-			['pci1', 'pci2', 'pci3', 'pci4', 'pci5', 'pci6', 'pci7', 'pci8', 'pci9', 'pci10', 'pci11', 'pci12'],
+			['pc1', 'pc2', 'pc3', 'pc4', 'pc5', 'pc6', 'pc7', 'pc8', 'pc9', 'pc10', 'pc11', 'pc12'],
 			# Bank 1 (led2)
-			['dma1', 'dma2', 'dma3', 'dma4', 'dma5', 'dma6', 'dma7', 'dma8', 'dma9', 'dma10', 'dma11', 'dma12'],
+			['ma1', 'ma2', 'ma3', 'ma4', 'ma5', 'ma6', 'ma7', 'ma8', 'ma9', 'ma10', 'ma11', 'ma12'],
 			# Bank 2 (led3)
-			['dmb1', 'dmb2', 'dmb3', 'dmb4', 'dmb5', 'dmb6', 'dmb7', 'dmb8', 'dmb9', 'dmb10', 'dmb11', 'dmb12'],
+			['mb1', 'mb2', 'mb3', 'mb4', 'mb5', 'mb6', 'mb7', 'mb8', 'mb9', 'mb10', 'mb11', 'mb12'],
 			# Bank 3 (led4)
-			['dac1', 'dac2', 'dac3', 'dac4', 'dac5', 'dac6', 'dac7', 'dac8', 'dac9', 'dac10', 'dac11', 'dac12'],
+			['ac1', 'ac2', 'ac3', 'ac4', 'ac5', 'ac6', 'ac7', 'ac8', 'ac9', 'ac10', 'ac11', 'ac12'],
 			# Bank 4 (led5)
-			['dmq1', 'dmq2', 'dmq3', 'dmq4', 'dmq5', 'dmq6', 'dmq7', 'dmq8', 'dmq9', 'dmq10', 'dmq11', 'dmq12'],
+			['mq1', 'mq2', 'mq3', 'mq4', 'mq5', 'mq6', 'mq7', 'mq8', 'mq9', 'mq10', 'mq11', 'mq12'],
 			# Bank 5 (led6)
 			['and', 'tad', 'isz', 'dca', 'jms', 'jmp', 'iot', 'opr', 'fetch', 'exec', 'defer', 'wrdct'],
 			# Bank 6 (led7)
-			['curad', 'break', 'ion', 'pause', 'run', 'dsc1', 'dsc2', 'dsc3', 'dsc4', 'dsc5'],
+			['curad', 'break', 'ion', 'pause', 'run', 'sc1', 'sc2', 'sc3', 'sc4', 'sc5'],
 			# Bank 7 (led8)
-			['ddf1', 'ddf2', 'ddf3', 'dif1', 'dif2', 'dif3']
+			['df1', 'df2', 'df3', 'if1', 'if2', 'if3', 'link']
 			]
 
 		self.ledCfg = {}				# A dictionary with LED names as keys and
@@ -181,6 +199,8 @@ class PiDP_ControlPanel:
 				column += 1
 				bankLeds.append(LED_OFF)
 			self.ledState.append(bankLeds)
+
+		self.dataBankList = ['pc', 'ma', 'mb', 'ac', 'mq']
 
 		# ---------------------------------------------------------------------
 		# ***  SWITCH CONFIGURATION  ***
@@ -220,6 +240,13 @@ class PiDP_ControlPanel:
 			for key in self.switchBanks[bank]:
 				self.switchCfg[key] = [bank, column, self._colPins[column]]
 				column += 1
+
+		self.switchSets = {'data_field':[], 'inst_field': [], 'swreg': []}
+		for i in range(0,12):
+			self.switchSets['swreg'].append('swreg' + str(i))
+			if i < 3:
+				self.switchSets['data_field'].append('data_field' + str(i))
+				self.switchSets['inst_field'].append('inst_field' + str(i))
 
 		# Initial GPIO pin settings
 		# set LED row pins to OUTPUT and LOW
@@ -305,6 +332,28 @@ class PiDP_ControlPanel:
 		col = self.ledCfg[ledName][1]
 		self.ledState[bank][col] = onOff
 
+	def setLedDataBank(self, bank, value):
+		''' This sets the LEDs for one of the 5 'data' banks
+			- pc (program counter) 		- bank 0
+			- ma (memory address) 		- bank 1
+			- mb (memory buffer)		- bank 2
+			- ac (accumulator)			- bank 3
+			- mq (multiplier quotient)	- bank 4
+		Acceptable values are 0 - 4095 (ie, a 12-bit value)
+		'''
+		if bank in self.dataBankList:
+			# we've been passed a bank name. Let's go get its number.
+			bank = self.dataBankList.index(bank)
+		value = int(value)					# just in case you're trying to be clever
+		if bank in range(0,5) and value in range(0,4096):
+			valList = []
+			for i in range(11,-1,-1):
+				divisor = (1 << i)
+				valList.append(1 - (math.floor(value / divisor)))
+				value = (value % divisor)
+			#valList.reverse()	# hmm, seems we didn't need this after all
+			self.ledState[bank] = valList
+
 	# *************************************************************************
 	# ***  SWITCH METHODS                                                   ***
 	# *************************************************************************
@@ -358,16 +407,33 @@ class PiDP_ControlPanel:
 		# save the state of this bank
 		self.switchState[bank] = state
 		if numericState != self._previousSwitchState[bank]:
-			self._debugPrint('Bank:{0} Previous: {1:<5} Now: {2:<5}'.format(bank, self._previousSwitchState[bank], numericState))
 			changed = True
 			self._previousSwitchState[bank] = numericState
 		return changed
+
+	def switchIsOn(self, switchName):
+		''' Just a convenience wrapper to switchSetting. Returns True if the switch is
+			in the On/Down position. '''
+		return self.switchSetting(switchName)
 
 	def switchPosition(self, switchName):
 		''' Get the state of a named switch in the switchState property. '''
 		bank = self.switchCfg[switchName][0]
 		column = self.switchCfg[switchName][1]
 		return self.switchState[bank][column]
+
+	def switchSetValue(self, switchSet):
+		''' Returns the decimal value of a set of switches. We define three sets:
+			'data_field'	- three left-most switches, values 0-7
+			'inst_field'	- next three switches, values 0-7
+			'swreg'			- the 12 switches in the middle, values 0-4095
+		'''
+		if switchSet in ['data_field', 'inst_field', 'swreg']:
+			value = 0
+			switchList = self.switchSets[switchSet]
+			for i in range(0, len(switchList)):
+				value = value + (self.switchSetting(switchList[i]) << i)
+			return value
 
 	def switchSetting(self, switchName):
 		''' Read the current physical setting for a single named switch. NB: This does not

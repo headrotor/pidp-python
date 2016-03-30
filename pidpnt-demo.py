@@ -4,20 +4,19 @@
 import PiDP_CP_NT as PiDP_CP
 import RPi.GPIO as GPIO
 
-DEBUG = True
+CP = PiDP_CP.PiDP_ControlPanel(ledDelay=100, debug=True)
 
-CP = PiDP_CP.PiDP_ControlPanel(ledDelay=50, debug=DEBUG)
+# Okay, so you're set up now. Insert your code here.
+# Everything below is for demo purposes only.
 
 print(CP)
-
-# For demo purpose only
 
 # Use ion LED as a sort-of power light - ie, turn it on just to show we're alive
 CP.setLedState('ion', PiDP_CP.LED_ON)
 
-# Turn on alternate pci LEDs. It's pretty.
+# Turn on alternate pc LEDs. It's pretty.
 for i in range(1,12,2):
-	CP.setLedState('pci' + str(i), PiDP_CP.LED_ON)
+	CP.setLedState('pc' + str(i), PiDP_CP.LED_ON)
 
 # The following dictionary is just an idea of what might be done. It links switches
 # with LEDs by name, so that if the switch is on, so is the LED. The key is the
@@ -25,12 +24,12 @@ for i in range(1,12,2):
 switchedLeds = {
 	'sing_step': 'pause',
 	'start': 'run',
-	'data_field0': 'ddf3',
-	'data_field1': 'ddf2',
-	'data_field2': 'ddf1',
-	'inst_field0': 'dif3',
-	'inst_field1': 'dif2',
-	'inst_field2': 'dif1'
+	'data_field0': 'df3',
+	'data_field1': 'df2',
+	'data_field2': 'df1',
+	'inst_field0': 'if3',
+	'inst_field1': 'if2',
+	'inst_field2': 'if1'
 }
 
 # let's roll some lights across the Memory Buffer (dmb) row, which is bank 2.
@@ -43,6 +42,10 @@ for i in range(0,14):
 	if i > 1:
 		CP.ledState[bank][i-2] = PiDP_CP.LED_OFF
 	CP.lightLeds(bank, pause=100000)
+
+
+# set accumulator row to show binary representation of number
+CP.setLedDataBank('ac', 2730)
 
 print('Ready...')
 # ------------------------------------------------------------------------------
@@ -57,12 +60,18 @@ print('Ready...')
 # sub-processes if possible.
 loop = True
 try:
+	# light the mq lights to match the positions of the switches directly beneath.
+	# We do this in the loop, too.
+	CP.setLedDataBank('mq', CP.switchSetValue('swreg'))
+
 	while loop:
 		CP.lightAllLeds(loops=5)							# light up the LEDs
 		if CP.scanAllSwitches():
 			CP.printSwitchState('Changed')
-			if CP.switchPosition('stop') == PiDP_CP.SWITCH_ON:
-				loop = False
+			CP.setLedDataBank('mq', CP.switchSetValue('swreg'))
+			print('df: {0}    if: {1}    sw: {2}'.format(CP.switchSetValue('data_field'),
+							CP.switchSetValue('inst_field'), CP.switchSetValue('swreg')))
+			if CP.switchIsOn('stop'): loop = False
 		CP.lightAllLeds(loops=5)							# light up the LEDs
 		# Now trigger LEDs according to the dict we created above
 		for switchname in switchedLeds:
