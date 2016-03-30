@@ -3,10 +3,6 @@ PiDP control panel - NON-THREADED VERSION
 
 Version 1.01
 
-THIS WORKS GREAT EXCEPT FOR BEING EXCEPTIONALLY CRASHY.
-PRPBABLY SOMETHING TO DO WITH TURNING ALL THOSE GPIOs FROM INPUT TO OUTPUT
-AND BACK AGAIN ALL THE TIME.
-
 by Steve Mansfield-Devine
 http://www.lomcovak.com/speculatrix/
 
@@ -19,9 +15,6 @@ For use with Oscar Vermeulen's PiDP kit. Every home should have one. Go here:
 PYTHON 3 ONLY.
 
 NB: NEEDS TO BE RUN AS ROOT !
-
-BUGS!
-	* setLedDataBank() doesn't with with the mb bank. Huh?
 
 Version history:
 	30-Mar-2016	1.01	Added setLedDataBank(), switchSetValue(), switchIsOn()
@@ -481,7 +474,7 @@ class PiDP_ControlPanel:
 			if isinstance(printItems, tuple): printItems = list(printItems)
 			self._print(printItems)
 
-	def _exit(self, *msgs):		# to be used in exceptions that should be fatal.
+	def _exit(self, *msgs):		# to be used in exceptions that deserve to be fatal.
 		if msgs: self._print(msgs)
 		GPIO.cleanup()
 		exit()
