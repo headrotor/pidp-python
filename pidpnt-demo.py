@@ -1,5 +1,24 @@
 #!/usr/bin/env python3
-'''	Demonstration of the non-threaded version of the PiDP Control Panel class. '''
+'''
+Demonstration of the non-threaded version of the PiDP Control Panel class.
+
+Version 1.01
+
+by Steve Mansfield-Devine
+http://www.lomcovak.com/speculatrix/
+
+Use this as you will. If you blog about what you do with it, a link would be
+the honourable thing to do.
+
+For use with Oscar Vermeulen's PiDP kit. Every home should have one. Go here:
+	http://obsolescence.wix.com/obsolescence#!pidp-8/cbie
+
+PYTHON 3 ONLY. Requires the PiDP_CP_NT.py library.
+
+NB: NEEDS TO BE RUN AS ROOT !
+
+
+'''
 
 import PiDP_CP_NT as PiDP_CP
 import RPi.GPIO as GPIO
@@ -83,9 +102,6 @@ try:
 except KeyboardInterrupt:						# I'm bored and I've hit Ctrl-C
 	print('\nStopped via keyboard interrupt.')
 except Exception as e:							# Uh-oh
-	print('Unanticipated and frankly rather worrying exception:', e)
-finally:
-	print('Cleaning up...')
-	GPIO.cleanup()
+	print('Unanticipated and frankly rather worrying exception:\n', e)
 
 GPIO.cleanup()

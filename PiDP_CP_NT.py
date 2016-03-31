@@ -41,7 +41,7 @@ the future drop-in replacement thing which, because it won't be all that clever,
 have a different order of args. You have been warned.
 Args are (with defaults):
 	boardCfg='std'		use 'serial' for PiDP's configured with serial option (NOT TESTED)
-	ledDelay=None		Experimental. Time to pause (seconds/100,000) when LEDs are lit.
+	ledDelay=100		Experimental. Time to pause (seconds/100,000) when LEDs are lit.
 						This is an attempt to make then brighter as the expense of
 						slight flicker and possibly slower switch response.
 	verbose=False		Use True to print messages to std output
@@ -50,7 +50,9 @@ Args are (with defaults):
 
 A note on 'banks'. In the PiDP, Oscar uses the term 'rows' on the PCB. But these rows are
 numbered from 1. As it's better from a programming point of view to number from 0,
-and to avoid confusion, I've used the term 'bank'. So bank 0 == row 1.
+and to avoid confusion, I've used the term 'bank'. So bank 0 == row 1. I didn't deem it
+important to come up with a different word for 'column', so I guess we'll all just have to
+live with that decision.
 
 LEDs --------------------------------------------------------------------------------
 
@@ -80,7 +82,7 @@ lightLeds(<bank>, [<pause>])	Briefly flash the LEDs in a specific bank (0-7). Th
 					this routine to pause when the LEDs are lit. But it is blocking and
 					means only one LED bank is lit.
 setLedDataBank(<bank>, <value>)	Set the whole row of 12 LEDs for a given data bank (can be
-					refered to by name - eg, 'pc' - or row number) to show a binary
+					referred to by name - eg, 'pc' - or row number) to show a binary
 					representation of a value 0-4095.
 setLedState(<name>)	Set the state (on/off) of a specific LED, referred to by name (eg, 'pc1').
 					Doesn't actually light it up, just changes its setting in
@@ -107,15 +109,16 @@ scanSwitches(<bank>)	Read the positions of the switches in a specific bank (0-2)
 					scanAllSwitches() ad hoc just to refresh switchState when needed.
 					Returns True if a switch in this bank has changed since the last
 					scan.
-switchIsOn(<name>)	Wrapper to switchSetting(). Returns true if named switch is in the
-					on (down) position.
+switchIsOn(<name>)	Convenience wrapper to switchSetting(). Returns true if named switch
+					is in the on (down) position.
 switchPosition(<name>)	Returns the state of the named switch according to switchState.
-switchSetValue()	Get a value for the positions a set of switches - 'data_field'
-					(values 0-7), 'inst_field' (0-7) or 'swreg' (0-4095).
+switchSetValue()	Get a value for the positions of a set of switches, treating the
+					switches as binary inputs - 'data_field' (values 0-7),
+					'inst_field' (0-7) or 'swreg' (0-4095).
 switchSetting(<name>)	Reads the current physical position of a named switch.
 					Doesn't update switchState. I don't know why. It might do someday.
 
-TO DO:
+TO DO (no promises):
 	* Method to pass in a list of LED names to set them on/off
 	* Method to pass in a list of switch names and have returned a list showing switch state
 """
@@ -321,6 +324,7 @@ class PiDP_ControlPanel:
 		''' Set the state of an individual, named LED on or off. This changes the state
 			in ledState but doesn't change whether the LED is actually on or off - that'll
 			happen the next time lightLeds()is called. '''
+		ledName = ledName.lower()
 		bank = self.ledCfg[ledName][0]
 		col = self.ledCfg[ledName][1]
 		self.ledState[bank][col] = onOff
@@ -334,6 +338,7 @@ class PiDP_ControlPanel:
 			- mq (multiplier quotient)	- bank 4
 		Acceptable values are 0 - 4095 (ie, a 12-bit value)
 		'''
+		if isinstance(bank, str): bank = bank.lower()
 		if bank in self.dataBankList:
 			# we've been passed a bank name. Let's go get its number.
 			bank = self.dataBankList.index(bank)
@@ -411,6 +416,7 @@ class PiDP_ControlPanel:
 
 	def switchPosition(self, switchName):
 		''' Get the state of a named switch in the switchState property. '''
+		switchName = switchName.lower()
 		bank = self.switchCfg[switchName][0]
 		column = self.switchCfg[switchName][1]
 		return self.switchState[bank][column]
@@ -421,6 +427,7 @@ class PiDP_ControlPanel:
 			'inst_field'	- next three switches, values 0-7
 			'swreg'			- the 12 switches in the middle, values 0-4095
 		'''
+		switchSet = switchSet.lower()
 		if switchSet in ['data_field', 'inst_field', 'swreg']:
 			value = 0
 			switchList = self.switchSets[switchSet]
@@ -431,6 +438,7 @@ class PiDP_ControlPanel:
 	def switchSetting(self, switchName):
 		''' Read the current physical setting for a single named switch. NB: This does not
 			update the switchState[][] property '''
+		switchName = switchName.lower()
 		bank = self.switchCfg[switchName][0]
 		colpin = self.switchCfg[switchName][2]
 		self._setSwitchBank(bank, SWITCH_BANK_ON)
@@ -457,7 +465,7 @@ class PiDP_ControlPanel:
 			# set row pins to INPUTS
 			for pin in self._switchRowPins:
 				GPIO.output(pin, GPIO.IN)
-			# make the column pins outputs again
+			# make the column pins outputs again - or not. Seems to work without...
 			#for switchName in self.switchBanks[bank]:
 			#	GPIO.setup(self.switchCfg[switchName][2], GPIO.OUT, initial=GPIO.LOW)
 
