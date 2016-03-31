@@ -72,12 +72,11 @@ CP = PiDP_CP.PiDP_ControlPanel()
 
 
 def printCurrentSettings():
-	binop1 = bin(operand1)
-	binop2 = bin(operand2)
-	fmtStr = '{0:0>12b} {0:<4} {1:>4} {2:>4} {2:0>12b}'
-	operandsStr = fmtStr.format(operand1, operators[opcode], operand2)
+	operandsStr = opFormat.format(operand1)
+	operandsStr += '{:^6}'.format(operators[opcode])
+	operandsStr += opFormat.format(operand2)
 	if op1loaded and op2loaded and haveResult:
-		resultStr = '= {0:.>12b} {0}'.format(result)
+		resultStr = '= ' + opFormat.format(result)
 		if negFlag == PiDP_CP.LED_ON: resultStr += ' -'
 		if carryFlag == PiDP_CP.LED_ON: resultStr += ' C'
 	else:
@@ -97,13 +96,19 @@ carryFlag = True
 negFlag = PiDP_CP.LED_OFF
 haveResult = PiDP_CP.LED_OFF
 
+opFormat = '{0:0>12b} {0:4o} 0x{0:3X} {0:<4}'
+
 op1loaded = False
 op2loaded = False
 
+OP1_DEP_SW = 'load_add'		# switches used to set the numbers and execute
+OP2_DEP_SW = 'dep'			# the calculation. Change these if your version of
+EXEC_SW = 'exam'			# the PiDP has momentary switches. The inst_field
+							# switches would be good alternatives
 opLeds = {
-	'data_field0': 'df3',
-	'data_field1': 'df2',
-	'data_field2': 'df1',
+	'data_field0': 'sc3',
+	'data_field1': 'sc2',
+	'data_field2': 'sc1',
 }
 
 print('bincalc ready...')
@@ -127,21 +132,22 @@ while loop:
 			carryFlag = PiDP_CP.LED_OFF
 			negFlag = PiDP_CP.LED_OFF
 			haveResult = False
-			if CP.switchIsOn('load_add'):
+			if CP.switchIsOn(OP1_DEP_SW):
 				if not op1loaded:
 					operand1 = entered
-					print('Setting op1: {0} {0:0>12b}'.format(operand1))
+
+					print('Setting op1:', opFormat.format(operand1))
 					op1loaded = True
 					printCurrentSettings()
 				else:
-					if CP.switchIsOn('dep'):
+					if CP.switchIsOn(OP2_DEP_SW):
 						if not op2loaded:
 							operand2 = entered
-							print('Setting op2: {0} {0:0>12b}'.format(operand2))
+							print('Setting op2:', opFormat.format(operand2))
 							op2loaded = True
 							printCurrentSettings()
 						else:
-							if opcode > 0 and CP.switchIsOn('exam'):
+							if opcode > 0 and CP.switchIsOn(EXEC_SW):
 								if opcode == 1:						# and
 									result = operand1 & operand2
 								if opcode == 2:						# or
