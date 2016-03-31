@@ -96,7 +96,7 @@ carryFlag = True
 negFlag = PiDP_CP.LED_OFF
 haveResult = PiDP_CP.LED_OFF
 
-opFormat = '{0:0>12b} {0:4o} 0x{0:3X} {0:<4}'
+opFormat = '{0:0>12b} {0:0>4o} 0x{0:0>3X} {0:>4}'
 
 op1loaded = False
 op2loaded = False
@@ -135,7 +135,6 @@ while loop:
 			if CP.switchIsOn(OP1_DEP_SW):
 				if not op1loaded:
 					operand1 = entered
-
 					print('Setting op1:', opFormat.format(operand1))
 					op1loaded = True
 					printCurrentSettings()
@@ -159,13 +158,13 @@ while loop:
 									if result > 4095:
 										result = result % 4096
 										carryFlag = PiDP_CP.LED_ON
-								if opcode == 5:						#nand
+								if opcode == 5:						# nand
 									result = ~(operand1 & operand2) & 0xFFF	# mask highest bits of 32-bit int to avoid negative
 								if opcode == 6:						# sub
-									result = operand1 - operand2
+									result = operand1 + ((~operand2) + 1)
 									if result < 0:
 										negFlag = PiDP_CP.LED_ON
-								if opcode == 7:						#nor
+								if opcode == 7:						# nor
 									result = ~(operand1 | operand2) & 0xFFF	# mask highest bits to avoid negative
 								haveResult = True
 								printCurrentSettings()
@@ -177,7 +176,9 @@ while loop:
 						operand2 = 0
 			else:
 				op1loaded = False
+				op2loaded = False
 				operand1 = 0
+				operand2 = 0
 		CP.setLedDataBank('ma', operand1)
 		CP.setLedDataBank('mb', operand2)
 		CP.setLedDataBank('ac', result)
@@ -188,6 +189,5 @@ while loop:
 				CP.setLedState(opLeds[switchname], PiDP_CP.LED_ON)
 			else:
 				CP.setLedState(opLeds[switchname], PiDP_CP.LED_OFF)
-
 
 GPIO.cleanup()
