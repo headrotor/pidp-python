@@ -73,28 +73,32 @@ CP = PiDP_CP.PiDP_ControlPanel()
 
 def updateScreen(stdscr, calc):
 	stdscr.clear()
-	topStr = '{:^8}'.format(operators[calc['opcode']])
+	topStr = '     {0:5}'.format(operators[calc['opcode']])
 	topStr += opFormat.format(calc['input'])
 	fillRpt = curses.COLS - len(topStr) - 1
 	topStr = topStr + (' ' * fillRpt)
-	stdscr.addstr(0,0, topStr, curses.A_REVERSE)
+	stdscr.addstr(0,0, (' ' * (curses.COLS - 1)), curses.A_REVERSE)
+	stdscr.addstr(1,0, topStr, curses.A_REVERSE)
+	stdscr.addstr(2,0, (' ' * (curses.COLS - 1)), curses.A_REVERSE)
+
+	stdscr.addstr(5,5, 'op1:')
+	stdscr.addstr(6,5, 'op2:')
+	stdscr.addstr(7,5, '   =')
 	if calc['opcode'] > 0:
 		stdscr.addstr(5,46, '{:4}'.format(operators[calc['opcode']]))
 	if calc['op1loaded']:
-		stdscr.addstr(5,5, 'op1: ' + opFormat.format(calc['op1']))
+		stdscr.addstr(5,10, opFormat.format(calc['op1']))
 		if calc['op2loaded']:
-			stdscr.addstr(6,5, 'op2: ' + opFormat.format(calc['op2']))
+			stdscr.addstr(6,10, opFormat.format(calc['op2']))
 			if calc['haveResult']:
-				resultStr = '   = ' + opFormat.format(calc['result'])
+				resultStr = opFormat.format(calc['result'])
 				if calc['negFlag'] == PiDP_CP.LED_ON: resultStr += ' -'
 				if calc['carryFlag'] == PiDP_CP.LED_ON: resultStr += ' C'
-				stdscr.addstr(7,5, resultStr)
+				stdscr.addstr(7,10, resultStr)
 
-	stdscr.addstr(15,5, '1=AND 2=OR 3=XOR 4=ADD 5=NAND 6=SUB 7=NOR')
+	stdscr.addstr(15,5, 'Store op1: {0}  |  Store op2: {1}  |  Exec: {2}'.format(OP1_DEP_SW, OP2_DEP_SW, EXEC_SW))
+	stdscr.addstr(17,5, 'Data Field: 1=AND 2=OR 3=XOR 4=ADD 5=NAND 6=SUB 7=NOR')
 	stdscr.refresh()	#update screen
-
-def printMsg(msg):
-	stdscr.addstr(20,5, msg)
 
 # ****************************************************************************
 # ***   SETUP                                                              ***
@@ -103,24 +107,32 @@ def printMsg(msg):
 operators = ['---', 'AND', 'OR', 'XOR', 'ADD', 'NAND', 'SUB', 'NOR']
 opFormat = '{0:0>12b}  0o{0:0>4o}  0x{0:0>3X}  {0:>4}'
 
+OP1_DEP_SW = 'load_add'		# switches used to set the numbers and execute
+OP2_DEP_SW = 'dep'			# the calculation. Change these if your version of
+EXEC_SW = 'exam'			# the PiDP has momentary switches. The inst_field
+								# switches would be good alternatives
+
 stdscr = curses.initscr()
 #curses.LINES				# number  of lines in this screen
 curses.curs_set(False)		# turn off the flashing cursor
 
 startMsg = [
-	'BINCALC READY...',
-	'Enter the first number using the 12 switches',
+	'BINCALC',
+	'-----------------------------------------------------------',
+	'Enter the first number using the 12 data switches',
 	'beneath the Multiplier Quotient row. The controls are:',
 	'-----------------------------------------------------------',
 	'item                  activate with     displayed on',
 	'-----------------------------------------------------------',
 	'Number to enter       12 main switches  Multiplier Quotient',
-	'Store first number    load_add          Memory Address',
-	'Store second number   dep               Memory Bank',
-	'Get result            exam              Accumulator',
-	'Select operator       data_field 1-3    Step Counter 1-3'
+	'Store first number    ' + '{:<10}'.format(OP1_DEP_SW) + '        Memory Address',
+	'Store second number   ' + '{:<10}'.format(OP2_DEP_SW) + '        Memory Bank',
+	'Get result            ' + '{:<10}'.format(EXEC_SW) + '        Accumulator',
+	'Select operator       data_field        Step Counter',
+	' ',
+	'Flip a data switch now to get started -->'
 ]
-
+'{:<10}'.format(OP1_DEP_SW)
 startLine = 5
 for line in startMsg:
 	stdscr.addstr(startLine,5, line)
@@ -144,10 +156,6 @@ def main(stdscr):
 		'op1loaded': False,
 		'op2loaded': False
 	}
-	OP1_DEP_SW = 'load_add'		# switches used to set the numbers and execute
-	OP2_DEP_SW = 'dep'			# the calculation. Change these if your version of
-	EXEC_SW = 'exam'			# the PiDP has momentary switches. The inst_field
-								# switches would be good alternatives
 	opLeds = {
 		'data_field0': 'sc3',
 		'data_field1': 'sc2',
@@ -219,6 +227,7 @@ def main(stdscr):
 					CP.setLedState(opLeds[switchname], PiDP_CP.LED_ON)
 				else:
 					CP.setLedState(opLeds[switchname], PiDP_CP.LED_OFF)
+			CP.lightAllLeds(loops=5)	# light up the LEDs again
 			updateScreen(stdscr, calc)
 
 curses.wrapper(main)
