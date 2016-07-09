@@ -5,11 +5,11 @@ My fork of https://github.com/machina-speculatrix/pidp-python -- see below the f
 For use with Oscar Vermeulen's PiDP kit. Every home should have one. Go here:
 http://obsolescence.wix.com/obsolescence#!pidp-8/cbie
 
-My contribution: PiPanel.py -- use PiDP control panel switches to
-execute arbitrary commands and display status (mostly mpd music
+My contribution: pipanel.py -- use PiDP control panel switches to
+execute arbitrary commands and display status (currently mpd music
 streaming info) on the LEDs
 
-Thank you Steve for doing the heavy interface lifting so we can do this!
+Thank you Steve for doing the heavy interface lifting to make this easier!
 
 NB: PYTHON 3 ONLY. Requires the PiDP_CP_NT.py library.
 
