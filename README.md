@@ -2,10 +2,12 @@
 
 My fork of https://github.com/machina-speculatrix/pidp-python -- see below the fold.
 
+More info on this project: http://rotormind.com/blog/2016/PiDP8-streaming-radio-controller/
+
 For use with Oscar Vermeulen's PiDP kit. Every home should have one. Go here:
 http://obsolescence.wix.com/obsolescence#!pidp-8/cbie
 
-My contribution: pipanel.py -- use PiDP control panel switches to
+My contribution: picontrol.py -- use PiDP control panel switches to
 execute arbitrary commands and display status (currently mpd music
 streaming info) on the LEDs
 
