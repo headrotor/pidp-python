@@ -2,6 +2,8 @@
 
 My fork of https://github.com/machina-speculatrix/pidp-python -- see below the fold.
 
+More info on this project: http://rotormind.com/blog/2016/PiDP8-streaming-radio-controller/
+
 For use with Oscar Vermeulen's PiDP kit. Every home should have one. Go here:
 http://obsolescence.wix.com/obsolescence#!pidp-8/cbie
 
