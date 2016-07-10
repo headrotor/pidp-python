@@ -98,7 +98,7 @@ print(CP)
 
 
 # set accumulator row to show binary representation of number
-# CP.setLedDataBank('ac', 2730)
+CP.setLedDataBank('ac', 2730)
 
 print('Ready...')
 # ------------------------------------------------------------------------------
@@ -110,13 +110,15 @@ print('Ready...')
 # lightAllLeds().
 
 loop_count = 0
+# for blinkenlights
+bl_count = 0
 loop = True
 try:
     # light the mq lights to match the positions of the switches directly beneath.
     # We do this in the loop, too.
     CP.setLedDataBank('mq', CP.switchSetValue('swreg'))
 
-    # make a list of the vertical LEDS to show current stations
+    # make a list of the vertical LEDS to show pos in playlist
     stat_LEDS = ['and','tad','isz','dca',
                  'jms','jmp','iot','opr',
                  'fetch','exec','defer','wrdct',
@@ -127,6 +129,10 @@ try:
         CP.lightAllLeds(loops=5)
         # make bargraph from volume
         if loop_count % 5 == 0:
+            #CP.setLedDataBank('ma', bl_count)
+            CP.setLedDataBank('ma', (loop_count << 5) + loop_count)
+            CP.setLedDataBank('mb', ((0x1F&~loop_count) << 5 ) + 0x1F&(~loop_count))
+            bl_count += 1
             vol, sta = get_mpd_status()
             for i in range(0, 10):
                 if i < int((1.39*vol)/10.0):
@@ -139,7 +145,8 @@ try:
                  CP.setLedState(stat_LEDS[i],PiDP_CP.LED_OFF)
             if sta > 0:
                 #print('sta' + str(sta))
-                CP.setLedState(stat_LEDS[sta - 1],PiDP_CP.LED_ON)                              
+                if sta < len(stat_LEDS):
+                    CP.setLedState(stat_LEDS[sta - 1],PiDP_CP.LED_ON)                              
              # blink ion as 
         if loop_count > 15:
             CP.setLedState('ion', PiDP_CP.LED_ON)
