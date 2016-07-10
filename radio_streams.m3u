@@ -1,0 +1,28 @@
+#EXTM3U
+
+#EXTINF:123, BFF.fm
+http://54.200.3.150:8232/listen.mp3
+
+#EXTINF:123, KALX
+http://icecast.media.berkeley.edu:8000/kalx-128.mp3
+
+#EXTINF:123, KFJC
+http://aac.kfjc.org:80/high
+
+#EXTINF:123, WFMU
+http://stream0.wfmu.org/freeform-128k
+
+#EXTINF:123, KZSU
+http://kzsu-stream2.stanford.edu/kzsu-1-128.mp3
+
+#EXTINF:123, SOMA-FM Groovesalad
+http://ice1.somafm.com/groovesalad-128-mp3
+
+#EXTINF:123, Mutiny Radio
+http://nthmost.net:8000/mutiny-studio
+
+#EXTINF:123, Radio Valencia
+http://live.str3am.com:3010/live
+
+#EXTINF:123, Radio Valencia
+http://live.str3am.com:3010/live

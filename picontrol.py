@@ -8,9 +8,14 @@ import subprocess
 
 My fork of https://github.com/machina-speculatrix/pidp-python -- see below the fold.
 
-My contribution: pipanel.py -- use PiDP control panel switches to
+
+
+picontrol.py: use PiDP control panel switches to
 execute arbitrary commands and display status (mostly mpd music
 streaming info) on the LEDs
+
+More information 
+http://rotormind.com/blog/2016/PiDP8-streaming-radio-controller/
 
 WARNING: STILL UNDER CONSTRUCTION <digger.gif>
 
@@ -38,16 +43,25 @@ import RPi.GPIO as GPIO
 
 def get_mpd_status():
     """ use mpc to get mpd status. Right now just returns volume 
-    as a 0-100 int"""
+    as a 0-100 int and playlist"""
     result = check_output(['mpc', 'status'])
     result = result.decode('utf-8')
     lines = result.split('\n')
+    vol = -1
+    sta = -1
+    # parse volume
     if len(lines) >= 3:
         #print(lines[2])
         parsed = lines[2].split()
         if len(parsed) > 0:
-            return(int(parsed[1].strip('%')))
-    return -1
+            vol = int(parsed[1].strip('%'))
+
+        #parse station
+        parsed = lines[1].split()
+        if parsed[0] == '[playing]':
+            parsed = parsed[1].split('/')
+            sta = int(parsed[0].strip('#'))
+    return vol, sta
 
 def process_switches(cp, adict=None):
     """ process switches with dict of action. Remember last switch state"""
@@ -70,8 +84,8 @@ def process_switches(cp, adict=None):
         }
     for k in adict:
         if cp.switchIsOn(k):
-            print("got key " + k) 
-            print("execute action " + str(adict[k]))
+            #print("got key " + k) 
+            #print("execute action " + str(adict[k]))
             call(adict[k])
 
 
@@ -83,26 +97,8 @@ CP = PiDP_CP.PiDP_ControlPanel(ledDelay=100, debug=True)
 print(CP)
 
 
-
-# The following dictionary is just an idea of what might be done. It links switches
-# with LEDs by name, so that if the switch is on, so is the LED. The key is the
-# switch name and the value the LED name.
-switchedLeds = {
-    'sing_step': 'pause',
-        'start': 'run',
-        'data_field0': 'df3',
-        'data_field1': 'df2',
-        'data_field2': 'df1',
-        'inst_field0': 'if3',
-        'inst_field1': 'if2',
-        'inst_field2': 'if1'
-}
-
-# let's roll some lights across the Memory Buffer (dmb) row, which is bank 2.
-# We'll use direct access to the ledState property to do this.
-
 # set accumulator row to show binary representation of number
-CP.setLedDataBank('ac', 2730)
+# CP.setLedDataBank('ac', 2730)
 
 print('Ready...')
 # ------------------------------------------------------------------------------
@@ -112,10 +108,6 @@ print('Ready...')
 # you call it in a loop, the brighter and less flickery the LEDs will be.
 # For each  task that you add to the loop, I suggest adding another call to
 # lightAllLeds().
-# Note also, though, that we're really not doing much in this loop. It remains
-# to be seen how effectively the LEDs work should you actually do anything
-# serious here. I would suggest spawning any major tasks as separate threads or
-# sub-processes if possible.
 
 loop_count = 0
 loop = True
@@ -123,23 +115,37 @@ try:
     # light the mq lights to match the positions of the switches directly beneath.
     # We do this in the loop, too.
     CP.setLedDataBank('mq', CP.switchSetValue('swreg'))
-        
+
+    # make a list of the vertical LEDS to show current stations
+    stat_LEDS = ['and','tad','isz','dca',
+                 'jms','jmp','iot','opr',
+                 'fetch','exec','defer','wrdct',
+                 'curad','break']
+    
     while loop:
 
         CP.lightAllLeds(loops=5)
         # make bargraph from volume
         if loop_count % 5 == 0:
-            vol = get_mpd_status()
+            vol, sta = get_mpd_status()
             for i in range(0, 10):
                 if i < int((1.39*vol)/10.0):
                     CP.ledState[0][i] = PiDP_CP.LED_ON
                 else:
                     CP.ledState[0][i] = PiDP_CP.LED_OFF
-        if loop_count > 10:
+
+
+            for i in range(len(stat_LEDS)):
+                 CP.setLedState(stat_LEDS[i],PiDP_CP.LED_OFF)
+            if sta > 0:
+                #print('sta' + str(sta))
+                CP.setLedState(stat_LEDS[sta - 1],PiDP_CP.LED_ON)                              
+             # blink ion as 
+        if loop_count > 15:
             CP.setLedState('ion', PiDP_CP.LED_ON)
         else:
             CP.setLedState('ion', PiDP_CP.LED_OFF)
-        if loop_count > 20:
+        if loop_count > 30:
             loop_count = 0
         loop_count += 1    
         CP.lightAllLeds(loops=5)							        
