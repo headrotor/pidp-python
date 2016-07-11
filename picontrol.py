@@ -130,8 +130,14 @@ try:
         # make bargraph from volume
         if loop_count % 5 == 0:
             #CP.setLedDataBank('ma', bl_count)
-            CP.setLedDataBank('ma', (loop_count << 5) + loop_count)
-            CP.setLedDataBank('mb', ((0x1F&~loop_count) << 5 ) + 0x1F&(~loop_count))
+            if CP.switchIsOn('swreg0'):
+                CP.setLedDataBank('ma', (loop_count << 5) + loop_count)
+            else:
+                CP.setLedDataBank('ma', 0)
+            if CP.switchIsOn('swreg1'):
+                CP.setLedDataBank('mb', ((0x1F&~loop_count) << 5 ) + 0x1F&(~loop_count))
+            else:
+                CP.setLedDataBank('mb', 0)
             bl_count += 1
             vol, sta = get_mpd_status()
             for i in range(0, 10):
