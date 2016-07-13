@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/python3
 import os, sys
 from subprocess import call, check_output
 import subprocess
@@ -52,9 +52,10 @@ def get_mpd_status():
     # parse volume
     if len(lines) >= 3:
         #print(lines[2])
-        parsed = lines[2].split()
+        parsed = lines[2].split('%')
         if len(parsed) > 0:
-            vol = int(parsed[1].strip('%'))
+            if parsed[0][0:6] == 'volume':
+                vol = int(parsed[0][7:])
 
         #parse station
         parsed = lines[1].split()
@@ -127,7 +128,7 @@ try:
     while loop:
 
         CP.lightAllLeds(loops=5)
-        # make bargraph from volume
+
         if loop_count % 5 == 0:
             #CP.setLedDataBank('ma', bl_count)
             if CP.switchIsOn('swreg0'):
@@ -140,13 +141,14 @@ try:
                 CP.setLedDataBank('mb', 0)
             bl_count += 1
             vol, sta = get_mpd_status()
-            for i in range(0, 10):
-                if i < int((1.39*vol)/10.0):
+            # make bargraph from volume
+            for i in range(12):
+                if i < int((1.2*vol)/10.0):
                     CP.ledState[0][i] = PiDP_CP.LED_ON
                 else:
                     CP.ledState[0][i] = PiDP_CP.LED_OFF
-
-
+                    
+            print(dstr)        
             for i in range(len(stat_LEDS)):
                  CP.setLedState(stat_LEDS[i],PiDP_CP.LED_OFF)
             if sta > 0:
