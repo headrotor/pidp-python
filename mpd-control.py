@@ -1,17 +1,35 @@
 #!/usr/bin/python3
 import os, sys
 from subprocess import call, check_output
-import subprocess
+import time
 
-'''
+# uses mpd2 for python 3 compat
+# for python 3: sudo pip3 install python-mpd
+# command ref http://pythonhosted.org/python-mpd2/topics/commands.html
+from mpd import MPDClient
 
+# #print(client.mpd_version)          # print the MPD version
+# print ("status")
+# print(client.status())          # print the MPD version
+# #print ("stats")
+# #print(client.stats())          # print the MPD version
+# print(client.currentsong())          # print the MPD version
+# #print(client.listall('smb://pidp'))          # print the MPD version
+# print(client.notcommands())          # print the MPD version
+# print ("-----------------------------commands")
+# print(client.notcommands())          # print the MPD version
+# #client.stop() # print result of the command "find any house"
 
+# #time.sleep(0.5)
+# #client.play() # print result of the command "find any house"
+# client.close()                     # send the close command
+# client.disconnect()      
+
+"""
 My fork of https://github.com/machina-speculatrix/pidp-python -- see below the fold.
 
-
-
 picontrol.py: use PiDP control panel switches to
-execute arbitrary commands and display status (mostly mpd music
+execute mpd2 (music streaming daemon) and display status (mostly mpd music
 streaming info) on the LEDs
 
 More information 
@@ -21,7 +39,9 @@ WARNING: STILL UNDER CONSTRUCTION <digger.gif>
 
 Thank you Steve for doing the heavy interface lifting so we can do this!
 
-NB: PYTHON 3 ONLY. Requires the PiDP_CP_NT.py library.
+NB: PYTHON 3 ONLY.
+Requires the PiDP_CP_NT.py library.
+Requires python mpd2 -- see above. 
 
 NB: NEEDS TO BE RUN AS ROOT !
 
@@ -36,32 +56,26 @@ PYTHON 3 ONLY. Requires the PiDP_CP_NT.py library.
 NB: NEEDS TO BE RUN AS ROOT !
 
 
-'''
+"""
+
 import PiDP_CP_NT as PiDP_CP
 import RPi.GPIO as GPIO
 
 
-def get_mpd_status():
-    """ use mpc to get mpd status. Right now just returns volume 
-    as a 0-100 int and playlist"""
-    result = check_output(['mpc', 'status'])
-    result = result.decode('utf-8')
-    lines = result.split('\n')
-    vol = -1
-    sta = -1
-    # parse volume
-    if len(lines) >= 3:
-        #print(lines[2])
-        parsed = lines[2].split('%')
-        if len(parsed) > 0:
-            if parsed[0][0:6] == 'volume':
-                vol = int(parsed[0][7:])
+def init_mpd(host='localhost'):
+    client = MPDClient()               # create client object
+    client.timeout = 10                # network timeout in secs (floats allow
+    client.idletimeout = None          # timeout for idle is handled seperately
+    client.connect(host, 6600)  # connect to localhost:6600
+    return client
 
-        #parse station
-        parsed = lines[1].split()
-        if parsed[0] == '[playing]':
-            parsed = parsed[1].split('/')
-            sta = int(parsed[0].strip('#'))
+
+def get_mpd_status(client):
+    """ use mpd2 to get mpd status. Right now just returns volume 
+    as a 0-100 int and playlist"""
+    result = client.status();
+    vol = result['volume']
+    sta = result['state']
     return vol, sta
 
 def process_switches(cp, adict=None):
@@ -125,34 +139,41 @@ try:
                  'fetch','exec','defer','wrdct',
                  'curad','break']
     
+    client = init_mpd()
+    
     while loop:
 
         CP.lightAllLeds(loops=5)
 
         if loop_count % 5 == 0:
             #CP.setLedDataBank('ma', bl_count)
+            # blinkenlights
+            #if CP.switchIsOn('swreg0') is True:
             if CP.switchIsOn('swreg0'):
                 CP.setLedDataBank('ma', (loop_count << 5) + loop_count)
             else:
                 CP.setLedDataBank('ma', 0)
-            if CP.switchIsOn('swreg1'):
+            if not CP.switchIsOn('swreg1'):
                 CP.setLedDataBank('mb', ((0x1F&~loop_count) << 5 ) + 0x1F&(~loop_count))
             else:
                 CP.setLedDataBank('mb', 0)
             bl_count += 1
-            vol, sta = get_mpd_status()
+            result = client.status()
+            vol = int(result['volume'])
             # make bargraph from volume
+
             for i in range(12):
                 if i < int((1.2*vol)/10.0):
                     CP.ledState[0][i] = PiDP_CP.LED_ON
                 else:
                     CP.ledState[0][i] = PiDP_CP.LED_OFF
             for i in range(len(stat_LEDS)):
-                 CP.setLedState(stat_LEDS[i],PiDP_CP.LED_OFF)
-            if sta > 0:
-                #print('sta' + str(sta))
-                if sta < len(stat_LEDS):
-                    CP.setLedState(stat_LEDS[sta - 1],PiDP_CP.LED_ON)                              
+                CP.setLedState(stat_LEDS[i],PiDP_CP.LED_OFF)
+
+            song = int(result['song'])
+
+            if  song < len(stat_LEDS):
+                CP.setLedState(stat_LEDS[song - 1],PiDP_CP.LED_ON)                              
              # blink ion as 
         if loop_count > 15:
             CP.setLedState('ion', PiDP_CP.LED_ON)
