@@ -73,11 +73,23 @@ def init_mpd(host='localhost'):
 def get_mpd_status(client):
     """ use mpd2 to get mpd status. Right now just returns volume 
     as a 0-100 int and playlist"""
+    # deprecated by use
     result = client.status();
     vol = result['volume']
     sta = result['state']
     return vol, sta
 
+
+def process_toggles(cp, toggle_dict):
+    adict = {"sing_inst":['/bin/bash','/home/pi/top_curtains.sh'],
+             "sing_step":['/bin/bash','/home/pi/top_curtains.sh']}
+
+    for key in toggle_dict:
+        if toggle_dict[key] != cp.switchSetting(key):
+            print("switch " + key + " toggled")
+            toggle_dict[key] = cp.switchSetting(key)    
+            call(adict[key])
+            
 def process_switches(cp, adict=None):
     """ process switches with dict of action. Remember last switch state"""
     # action dictionary
@@ -95,7 +107,6 @@ def process_switches(cp, adict=None):
                  "inst_field2":['mpc','play','4'],
                  "inst_field1":['mpc','play','5'],
                  "inst_field0":['mpc','play','6'],
-
         }
     for k in adict:
         if cp.switchIsOn(k):
@@ -106,11 +117,22 @@ def process_switches(cp, adict=None):
 
 CP = PiDP_CP.PiDP_ControlPanel(ledDelay=100, debug=True)
 
+
+# dict of switch names we want to check for toggling (changed) since last call
+toggles = {'sing_step':False,'sing_inst':False}
+
+
 # Okay, so you're set up now. Insert your code here.
 # Everything below is for demo purposes only.
 
 print(CP)
 
+
+# init toggles dict
+for key in toggles:
+    if CP.switchIsOn(key):
+        toggles[key] = CP.switchSetting(key)
+    
 
 # set accumulator row to show binary representation of number
 CP.setLedDataBank('ac', 2730)
@@ -144,12 +166,11 @@ try:
     while loop:
 
         CP.lightAllLeds(loops=5)
-
         if loop_count % 5 == 0:
             #CP.setLedDataBank('ma', bl_count)
             # blinkenlights
             #if CP.switchIsOn('swreg0') is True:
-            if CP.switchIsOn('swreg0'):
+            if not CP.switchIsOn('swreg0'):
                 CP.setLedDataBank('ma', (loop_count << 5) + loop_count)
             else:
                 CP.setLedDataBank('ma', 0)
@@ -159,21 +180,30 @@ try:
                 CP.setLedDataBank('mb', 0)
             bl_count += 1
             result = client.status()
-            vol = int(result['volume'])
-            # make bargraph from volume
+            #print(result)
+
+            song, vol = -1, -1
+            try:
+                song = int(result['song'])
+                vol = int(result['volume'])
+            except KeyError:
+                # happens when no playlist loaded
+                print('mpd key error')
+                print(result)
+
+            
+                # make bargraph from volume
 
             for i in range(12):
                 if i < int((1.2*vol)/10.0):
                     CP.ledState[0][i] = PiDP_CP.LED_ON
                 else:
                     CP.ledState[0][i] = PiDP_CP.LED_OFF
+
             for i in range(len(stat_LEDS)):
                 CP.setLedState(stat_LEDS[i],PiDP_CP.LED_OFF)
-
-            song = int(result['song'])
-
-            if  song < len(stat_LEDS):
-                CP.setLedState(stat_LEDS[song - 1],PiDP_CP.LED_ON)                              
+            if  song >= 0 and song < len(stat_LEDS):
+                CP.setLedState(stat_LEDS[song],PiDP_CP.LED_ON)                              
              # blink ion as 
         if loop_count > 15:
             CP.setLedState('ion', PiDP_CP.LED_ON)
@@ -188,6 +218,7 @@ try:
         if CP.scanAllSwitches():
             CP.printSwitchState('Changed')
             process_switches(CP)
+            process_toggles(CP, toggles)
             #CP.setLedDataBank('mq', CP.switchSetValue('swreg'))
             print('df: {0}    if: {1}    sw: {2}'.format(CP.switchSetValue('data_field'),
                                                          CP.switchSetValue('inst\_field'),
