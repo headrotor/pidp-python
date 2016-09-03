@@ -8,49 +8,7 @@ import time
 # command ref http://pythonhosted.org/python-mpd2/topics/commands.html
 from mpd import MPDClient, CommandError
 
-# #print(client.mpd_version)          # print the MPD version
-# print ("status")
-# print(client.status())          # print the MPD version
-# #print ("stats")
-# print(client.stats())          # print the MPD version
-# print(client.currentsong())          # print the MPD version
-# #print(client.listall('smb://pidp'))          # print the MPD version
-# print(client.notcommands())          # print the MPD version
-# print ("-----------------------------commands")
-# print(client.notcommands())          # print the MPD version
-# #client.stop() # print result of the command "find any house"
-
-# #time.sleep(0.5)
-# #client.play() # print result of the command "find any house"
-# client.close()                     # send the close command
-# client.disconnect()      
-
 """
-My fork of https://github.com/machina-speculatrix/pidp-python -- see below the fold.
-
-picontrol.py: use PiDP control panel switches to
-execute mpd2 (music streaming daemon) and display status (mostly mpd music
-streaming info) on the LEDs
-
-More information 
-http://rotormind.com/blog/2016/PiDP8-streaming-radio-controller/
-
-WARNING: STILL UNDER CONSTRUCTION <digger.gif>
-
-Thank you Steve for doing the heavy interface lifting so we can do this!
-
-NB: PYTHON 3 ONLY.
-Requires the PiDP_CP_NT.py library.
-Requires python mpd2 -- see above. 
-
-NB: NEEDS TO BE RUN AS ROOT !
-
-Use this as you will. If you blog about what you do with it, a link would be
-the honourable thing to do.
-
-For use with Oscar Vermeulen's PiDP kit. Every home should have one. Go here:
-	http://obsolescence.wix.com/obsolescence#!pidp-8/cbie
-
 PYTHON 3 ONLY. Requires the PiDP_CP_NT.py library.
 
 NB: NEEDS TO BE RUN AS ROOT !
@@ -107,154 +65,138 @@ def process_switches(cp, adict=None):
             call(adict[k])
 
 
-CP = PiDP_CP.PiDP_ControlPanel(ledDelay=100, debug=True)
 
 
-# dict of switch names we want to check for toggling (changed) since last call
-toggles = {'sing_step':False,'sing_inst':False}
 
 
-# Okay, so you're set up now. Insert your code here.
-# Everything below is for demo purposes only.
+def blinkenlights(CP):
 
-print(CP)
+    # blinkenlights on swreg3 swreg4
+    if not CP.switchIsOn('swreg3'):
+        CP.setLedDataBank('ma', (loop_count << 5) + loop_count)
+    else:
+        CP.setLedDataBank('ma', 0)
+    if not CP.switchIsOn('swreg4'):
+        CP.setLedDataBank('mb', ((0x1F&~loop_count) << 5 ) + 0x1F&(~loop_count))
+    else:
+        CP.setLedDataBank('mb', 0)
 
-
-# init toggles dict
-for key in toggles:
-    if CP.switchIsOn(key):
-        toggles[key] = CP.switchSetting(key)
-    
-
-# set accumulator row to show binary representation of number
-CP.setLedDataBank('ac', 2730)
-
-print('Ready...')
-# ------------------------------------------------------------------------------
-# ***  MAIN LOOP  ***
-# ------------------------------------------------------------------------------
-# Note that we call the lightAllLeds() method twice in the loop. The more often
-# you call it in a loop, the brighter and less flickery the LEDs will be.
-# For each  task that you add to the loop, I suggest adding another call to
-# lightAllLeds().
-
-loop_count = 0
-# for blinkenlights
-bl_count = 0
-loop = True
-try:
-    # light the mq lights to match the positions of the switches directly beneath.
-    # We do this in the loop, too.
-    CP.setLedDataBank('mq', CP.switchSetValue('swreg'))
-
+def vol_bargraph(CP, client):
     # make a list of the vertical LEDS to show pos in playlist
     stat_LEDS = ['and','tad','isz','dca',
                  'jms','jmp','iot','opr',
                  'fetch','exec','defer','wrdct',
                  'curad','break']
     
-    client = init_mpd()
-    
-    while loop:
+    result = client.status()
+    song, vol = -1, -1
+    try:
+        song = int(result['song'])
+        vol = int(result['volume'])
 
-        CP.lightAllLeds(loops=5)
-        if loop_count % 5 == 0:
-            #CP.setLedDataBank('ma', bl_count)
-            # blinkenlights
-            #if CP.switchIsOn('swreg0') is True:
-            if not CP.switchIsOn('swreg3'):
-                CP.setLedDataBank('ma', (loop_count << 5) + loop_count)
-            else:
-                CP.setLedDataBank('ma', 0)
-            if not CP.switchIsOn('swreg4'):
-                CP.setLedDataBank('mb', ((0x1F&~loop_count) << 5 ) + 0x1F&(~loop_count))
-            else:
-                CP.setLedDataBank('mb', 0)
-            bl_count += 1
-            result = client.status()
-            #print(result)
+    except KeyError:
+        # happens when no playlist loaded
+        #print('mpd key error')
+        # light status LED for position in playlist
+        for led in stat_LEDS:
+            CP.setLedState(led,PiDP_CP.LED_ON)
 
-            song, vol = -1, -1
-            try:
-                song = int(result['song'])
-                vol = int(result['volume'])
-            except KeyError:
-                # happens when no playlist loaded
-                print('mpd key error')
-                print(result)
 
-            
-                # make bargraph from volume
 
-            for i in range(12):
-                if i < int((1.2*vol)/10.0):
-                    CP.ledState[0][i] = PiDP_CP.LED_ON
-                else:
-                    CP.ledState[0][i] = PiDP_CP.LED_OFF
+    for i in range(len(stat_LEDS)):
+        CP.setLedState(stat_LEDS[i],PiDP_CP.LED_OFF)
 
-            for i in range(len(stat_LEDS)):
-                CP.setLedState(stat_LEDS[i],PiDP_CP.LED_OFF)
-            if  song >= 0 and song < len(stat_LEDS):
-                CP.setLedState(stat_LEDS[song],PiDP_CP.LED_ON)                              
-             # blink ion as 
-        if loop_count > 15:
-            CP.setLedState('ion', PiDP_CP.LED_ON)
+    if song < 0:
+        return
+
+    # make volume bargraph
+    for i in range(12):
+        if i < int((1.2*vol)/10.0):
+            CP.ledState[0][i] = PiDP_CP.LED_ON
         else:
-            CP.setLedState('ion', PiDP_CP.LED_OFF)
-        if loop_count > 30:
-            loop_count = 0
-        loop_count += 1    
-        CP.lightAllLeds(loops=5)							        
-        # make volume bargraph
-        #CP.setLedDataBank('mq', CP.switchSetValue('swreg'))
-        if CP.scanAllSwitches():
-            CP.printSwitchState('Changed')
-            if CP.switchIsOn('start'):
+            CP.ledState[0][i] = PiDP_CP.LED_OFF
+    # light status LED for position in playlist
+    if  song < len(stat_LEDS):
+        CP.setLedState(stat_LEDS[song],PiDP_CP.LED_ON)                                
+
+def handle_start(CP,client):
+    #if CP.scanAllSwitches():
+    #    CP.printSwitchState('Changed')
+    if CP.switchIsOn('start'):
                 
-                # spcial treatment for start switch. Clear
-                # playlist, load new playlist based on toggles
+        # spcial treatment for start switch. Clear
+        # playlist, load new playlist based on toggles
 
-                #print(CP.switchSetValue('swreg'))
-                swreg = int(CP.switchSetValue('swreg'))
-                # ones complement not trivial
-                mask =  (1 << swreg.bit_length()) - 1
-                swreg = swreg^mask
-                print(repr(swreg))
-                client.clearerror()
-                client.clear()
-                playlistname = "{:1d}_playlist".format(swreg)
-                print("new playlist " + playlistname)
-                try:
-                    client.load(playlistname)
-                except CommandError:
-                    print("no such playlist :(")
-                else:
-                    client.play()
+        #print(CP.switchSetValue('swreg'))
+        swreg = int(CP.switchSetValue('swreg'))
+        # ones complement not trivial
+        mask =  (1 << swreg.bit_length()) - 1
+        swreg = swreg^mask
+        print(repr(swreg))
+        client.clearerror()
+        client.clear()
+        playlistname = "{:1d}_playlist".format(swreg & 0x07)
+        print("new playlist " + playlistname)
+        try:
+            client.load(playlistname)
+        except CommandError:
+            print("no such playlist :(")
+        else:
+            client.play()
+        return False
+    else:
+        return True
+
+
+def init_cp(CP):
+    # dict of switch names we want to check for toggling (changed) since last call
+    toggles = {'sing_step':False,'sing_inst':False}
+    # init toggles dict
+    for key in toggles:
+        if CP.switchIsOn(key):
+            toggles[key] = CP.switchSetting(key)
+    return toggles
+
+if __name__ == "__main__":
+
+    CP = PiDP_CP.PiDP_ControlPanel(ledDelay=100, debug=True)
+
+    toggles = init_cp(CP)
+    client = init_mpd()
+
+    loop_count = 0
+    # main loop
+    try:
+        while True: 
+
+            CP.lightAllLeds(loops=5)
+            if loop_count % 5 == 0:
+                blinkenlights(CP)
+                vol_bargraph(CP, client)
+
+            # blink ion as status light
+            if loop_count > 15:
+                CP.setLedState('ion', PiDP_CP.LED_ON)
             else:
-                process_switches(CP)
-            process_toggles(CP, toggles)
-            #CP.setLedDataBank('mq', CP.switchSetValue('swreg'))
-            print('df: {0}    if: {1}    sw: {2}'.format(CP.switchSetValue('data_field'),
-                                                         CP.switchSetValue('inst\_field'),
-                                                         CP.switchSetValue('swreg')))
-                                    
+                CP.setLedState('ion', PiDP_CP.LED_OFF)
 
-            #if CP.switchIsOn('stop'):
-            #    loop = False
+            if loop_count > 30:
+                loop_count = 0
 
-        CP.lightAllLeds(loops=5)						       # light up the LEDs
-        # Now trigger LEDs according to the dict we created above
-        #for switchname in switchedLeds:
-        #    if CP.switchSetting(switchname):
-        #        CP.setLedState(switchedLeds[switchname], PiDP_CP.LED_ON)
-        #    else:
-        #        CP.setLedState(switchedLeds[switchname], PiDP_CP.LED_OFF)
+            loop_count += 1    
+            CP.lightAllLeds(loops=5)
 
-except KeyboardInterrupt:
-    # I'm bored and I've hit Ctrl-C
-    print('\nStopped via keyboard interrupt.')
-except Exception as e:
-    # Uh-oh
-    print('Unanticipated and frankly rather worrying exception:\n', e)
-    raise e
-GPIO.cleanup()
+            if CP.scanAllSwitches():
+                if handle_start(CP,client):
+                    process_switches(CP)
+                process_toggles(CP, toggles)
+
+    except KeyboardInterrupt:
+        # I'm bored and I've hit Ctrl-C
+        print('\nStopped via keyboard interrupt.')
+    except Exception as e:
+        # Uh-oh
+        print('Unanticipated and frankly rather worrying exception:\n', e)
+        raise e
+    finally:
+        GPIO.cleanup()
