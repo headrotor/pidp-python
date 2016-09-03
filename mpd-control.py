@@ -6,13 +6,13 @@ import time
 # uses mpd2 for python 3 compat
 # for python 3: sudo pip3 install python-mpd
 # command ref http://pythonhosted.org/python-mpd2/topics/commands.html
-from mpd import MPDClient
+from mpd import MPDClient, CommandError
 
 # #print(client.mpd_version)          # print the MPD version
 # print ("status")
 # print(client.status())          # print the MPD version
 # #print ("stats")
-# #print(client.stats())          # print the MPD version
+# print(client.stats())          # print the MPD version
 # print(client.currentsong())          # print the MPD version
 # #print(client.listall('smb://pidp'))          # print the MPD version
 # print(client.notcommands())          # print the MPD version
@@ -94,19 +94,11 @@ def process_switches(cp, adict=None):
     """ process switches with dict of action. Remember last switch state"""
     # action dictionary
     if adict is None:
-        adict = {"stop":['mpc', 'pause'],
-                 "start":['mpc', 'play'],
+        adict = {"stop":['mpc', 'toggle'],
                  "load_add":['mpc', 'next'],
                  "dep":['mpc', 'prev'],
                  "exam":['mpc','volume','+5'],
                  "cont":['mpc','volume','-5'],
-                 "stop":['mpc','stop'],
-                 "data_field2":['mpc','play','1'],
-                 "data_field1":['mpc','play','2'],
-                 "data_field0":['mpc','play','3'],
-                 "inst_field2":['mpc','play','4'],
-                 "inst_field1":['mpc','play','5'],
-                 "inst_field0":['mpc','play','6'],
         }
     for k in adict:
         if cp.switchIsOn(k):
@@ -170,11 +162,11 @@ try:
             #CP.setLedDataBank('ma', bl_count)
             # blinkenlights
             #if CP.switchIsOn('swreg0') is True:
-            if not CP.switchIsOn('swreg0'):
+            if not CP.switchIsOn('swreg3'):
                 CP.setLedDataBank('ma', (loop_count << 5) + loop_count)
             else:
                 CP.setLedDataBank('ma', 0)
-            if not CP.switchIsOn('swreg1'):
+            if not CP.switchIsOn('swreg4'):
                 CP.setLedDataBank('mb', ((0x1F&~loop_count) << 5 ) + 0x1F&(~loop_count))
             else:
                 CP.setLedDataBank('mb', 0)
@@ -217,7 +209,29 @@ try:
         #CP.setLedDataBank('mq', CP.switchSetValue('swreg'))
         if CP.scanAllSwitches():
             CP.printSwitchState('Changed')
-            process_switches(CP)
+            if CP.switchIsOn('start'):
+                
+                # spcial treatment for start switch. Clear
+                # playlist, load new playlist based on toggles
+
+                #print(CP.switchSetValue('swreg'))
+                swreg = int(CP.switchSetValue('swreg'))
+                # ones complement not trivial
+                mask =  (1 << swreg.bit_length()) - 1
+                swreg = swreg^mask
+                print(repr(swreg))
+                client.clearerror()
+                client.clear()
+                playlistname = "{:1d}_playlist".format(swreg)
+                print("new playlist " + playlistname)
+                try:
+                    client.load(playlistname)
+                except CommandError:
+                    print("no such playlist :(")
+                else:
+                    client.play()
+            else:
+                process_switches(CP)
             process_toggles(CP, toggles)
             #CP.setLedDataBank('mq', CP.switchSetValue('swreg'))
             print('df: {0}    if: {1}    sw: {2}'.format(CP.switchSetValue('data_field'),
