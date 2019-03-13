@@ -172,8 +172,12 @@ if __name__ == "__main__":
             CP.lightAllLeds(loops=5)
             if loop_count % 5 == 0:
                 blinkenlights(CP)
-                vol_bargraph(CP, client)
-
+                try:
+                    vol_bargraph(CP, client)
+                except socket.timeout:
+                    print("socket timeout")
+                    pass
+                
             # blink ion as status light
             if loop_count > 15:
                 CP.setLedState('ion', PiDP_CP.LED_ON)
