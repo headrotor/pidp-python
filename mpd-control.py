@@ -1,5 +1,6 @@
 #!/usr/bin/python3
 import os, sys
+import socket
 from subprocess import call, check_output
 import time
 
@@ -22,20 +23,20 @@ import RPi.GPIO as GPIO
 
 def init_mpd(host='localhost'):
     client = MPDClient()               # create client object
-    client.timeout = 10                # network timeout in secs (floats allow
-    client.idletimeout = None          # timeout for idle is handled seperately
+    client.timeout = 1                 # network timeout in secs (floats allow
+    client.idletimeout = 2          # timeout for idle is handled seperately
     client.connect(host, 6600)  # connect to localhost:6600
     return client
 
 
-def get_mpd_status(client):
-    """ use mpd2 to get mpd status. Right now just returns volume 
-    as a 0-100 int and playlist"""
-    # deprecated by use
-    result = client.status();
-    vol = result['volume']
-    sta = result['state']
-    return vol, sta
+# def get_mpd_status(client):
+#     """ use mpd2 to get mpd status. Right now just returns volume 
+#     as a 0-100 int and playlist"""
+#     # deprecated by use
+#     result = client.status();
+#     vol = result['volume']
+#     sta = result['state']
+#     return vol, sta
 
 
 def process_toggles(cp, toggle_dict):
@@ -81,6 +82,25 @@ def blinkenlights(CP):
     else:
         CP.setLedDataBank('mb', 0)
 
+
+def get_status(client):
+    try:
+        result = client.status()
+
+    except ConnectionResetError:
+        print("reset error")
+        time.sleep(1)
+        return None
+    
+    except  OSError as e:
+        # OK no good way to catch this when client has closed.
+        # exit to shell and use restart loop
+        print("OS error")
+        raise e
+
+
+    return result
+        
 def vol_bargraph(CP, client):
     # make a list of the vertical LEDS to show pos in playlist
     stat_LEDS = ['and','tad','isz','dca',
@@ -88,7 +108,12 @@ def vol_bargraph(CP, client):
                  'fetch','exec','defer','wrdct',
                  'curad','break']
     
-    result = client.status()
+    #result = client.status()
+
+    result = get_status(client)
+    if result is None:
+        return
+
     song, vol = -1, -1
     try:
         song = int(result['song'])
@@ -172,11 +197,7 @@ if __name__ == "__main__":
             CP.lightAllLeds(loops=5)
             if loop_count % 5 == 0:
                 blinkenlights(CP)
-                try:
-                    vol_bargraph(CP, client)
-                except socket.timeout:
-                    print("socket timeout")
-                    pass
+                vol_bargraph(CP, client)
                 
             # blink ion as status light
             if loop_count > 15:
