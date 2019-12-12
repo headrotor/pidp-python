@@ -8,8 +8,13 @@ import time
 # uses mpd2 for python 3 compat
 # for python 3: sudo pip3 install python-mpd
 # command ref http://pythonhosted.org/python-mpd2/topics/commands.html
-from mpd import MPDClient, CommandError
 
+
+#from mpd import MPDClient, CommandError
+
+
+# local imports, symlinked from 
+from mpd_logic import MPDLogic
 from dmx_logic import DMXLEDS
 
 
@@ -23,14 +28,6 @@ NB: NEEDS TO BE RUN AS ROOT !
 
 import PiDP_CP_NT as PiDP_CP
 import RPi.GPIO as GPIO
-
-
-def init_mpd(host='localhost'):
-    client = MPDClient()               # create client object
-    client.timeout = 1                 # network timeout in secs (floats allow
-    client.idletimeout = 2          # timeout for idle is handled seperately
-    client.connect(host, 6600)  # connect to localhost:6600
-    return client
 
 
 # def get_mpd_status(client):
@@ -64,22 +61,32 @@ def process_toggles(cp, toggle_dict, dmx):
                 else:
                     dmx.clients[0].set_switch(False)
                     
-def process_switches(cp, adict=None):
+def process_switches(cp, mpd):
     """ process switches with dict of action. Remember last switch state"""
     # action dictionary
-    if adict is None:
-        adict = {"stop":['mpc', 'toggle'],
-                 "load_add":['mpc', 'next'],
-                 "dep":['mpc', 'prev'],
-                 "exam":['mpc','volume','+5'],
-                 "cont":['mpc','volume','-5'],
-        }
+
+    adict = {"stop":['mpc', 'toggle'],
+             "load_add":['mpc', 'next'],
+             "dep":['mpc', 'prev'],
+             "exam":['mpc','volume','+5'],
+             "cont":['mpc','volume','-5'],
+    }
     for k in adict:
         if cp.switchIsOn(k):
-            #print("got key " + k) 
+            print("got key " + k) 
             #print("execute action " + str(adict[k]))
-            call(adict[k])
-
+            #call(adict[k])
+            if k == "stop":
+                mpl.toggle_play()                
+            elif k == 'load_add':
+                mpd.client.next()
+            elif k == 'dep':
+                mpd.client.previous()
+            elif k == 'exam':
+                mpd.volume_incr(+5)
+            elif k == 'cont':
+                mpd.volume_incr(-5)
+            
 
 def blinkenlights(CP):
 
@@ -94,25 +101,8 @@ def blinkenlights(CP):
         CP.setLedDataBank('mb', 0)
 
 
-def get_status(client):
-    try:
-        result = client.status()
-
-    except ConnectionResetError:
-        print("reset error")
-        time.sleep(1)
-        return None
-    
-    except  OSError as e:
-        # OK no good way to catch this when client has closed.
-        # exit to shell and use restart loop
-        print("OS error")
-        raise e
-
-
-    return result
         
-def vol_bargraph(CP, client):
+def vol_bargraph(CP, mpl):
     # make a list of the vertical LEDS to show pos in playlist
     stat_LEDS = ['and','tad','isz','dca',
                  'jms','jmp','iot','opr',
@@ -121,30 +111,15 @@ def vol_bargraph(CP, client):
     
     #result = client.status()
 
-    result = get_status(client)
+    result = mpl.get_status()
+    
     if result is None:
         return
-
-    song, vol = -1, -1
-    try:
-        song = int(result['song'])
-        vol = int(result['volume'])
-
-    except KeyError:
-        # happens when no playlist loaded
-        #print('mpd key error')
-        # light status LED for position in playlist
-        for led in stat_LEDS:
-            CP.setLedState(led,PiDP_CP.LED_ON)
-
-
-
-    for i in range(len(stat_LEDS)):
-        CP.setLedState(stat_LEDS[i],PiDP_CP.LED_OFF)
-
-    if song < 0:
+    if "error" in result:
+        print("Error, skipping")
         return
 
+    vol = mpl.volume
     # make volume bargraph
     for i in range(12):
         if i < int((1.2*vol)/10.0):
@@ -152,10 +127,15 @@ def vol_bargraph(CP, client):
         else:
             CP.ledState[0][i] = PiDP_CP.LED_OFF
     # light status LED for position in playlist
+
+    for i in range(len(stat_LEDS)):
+        CP.setLedState(stat_LEDS[i],PiDP_CP.LED_OFF)
+
+    song = mpl.song
     if  song < len(stat_LEDS):
         CP.setLedState(stat_LEDS[song],PiDP_CP.LED_ON)                                
 
-def handle_start(CP,client):
+def handle_start(CP,mpl):
     #if CP.scanAllSwitches():
     #    CP.printSwitchState('Changed')
     if CP.switchIsOn('start'):
@@ -169,16 +149,19 @@ def handle_start(CP,client):
         mask =  (1 << swreg.bit_length()) - 1
         swreg = swreg^mask
         #print(repr(swreg))
-        client.clearerror()
-        client.clear()
+
+        mpl.client.clearerror()
+        mpl.client.clear()
         playlistname = "{:1d}_playlist".format(swreg & 0x07)
         print("new playlist " + playlistname)
-        try:
-            client.load(playlistname)
-        except CommandError:
-            print("no such playlist :(")
-        else:
-            client.play()
+        mpl.client.load(playlistname)
+        mpl.client.play()
+        # try:
+        #     mpl.client.load(playlistname)
+        # except CommandError:
+        #     print("no such playlist :(")
+        # else:
+        #     mpl.client.play()
         return False
     else:
         return True
@@ -200,7 +183,9 @@ if __name__ == "__main__":
     CP = PiDP_CP.PiDP_ControlPanel(ledDelay=100, debug=True)
 
     toggles = init_cp(CP)
-    client = init_mpd()
+
+    mpl = MPDLogic()
+
 
     dmx = DMXLEDS()
     
@@ -212,7 +197,7 @@ if __name__ == "__main__":
             CP.lightAllLeds(loops=5)
             if loop_count % 5 == 0:
                 blinkenlights(CP)
-                vol_bargraph(CP, client)
+                vol_bargraph(CP, mpl)
                 
             # blink ion as status light
             if loop_count > 15:
@@ -227,8 +212,8 @@ if __name__ == "__main__":
             CP.lightAllLeds(loops=5)
 
             if CP.scanAllSwitches():
-                if handle_start(CP,client):
-                    process_switches(CP)
+                if handle_start(CP,mpl):
+                    process_switches(CP,mpl)
             process_toggles(CP, toggles, dmx)
 
     except KeyboardInterrupt:
