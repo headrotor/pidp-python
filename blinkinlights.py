@@ -41,8 +41,8 @@ import RPi.GPIO as GPIO
 
 
 def process_toggles(cp, toggle_dict, dmx):
-    adict = {"sing_inst":['/bin/bash','/home/pi/top_curtains.sh'],
-             "sing_step":['/bin/bash','/home/pi/top_curtains.sh']}
+#    adict = {"sing_inst":['/bin/bash','/home/pi/top_curtains.sh'],
+#             "sing_step":['/bin/bash','/home/pi/top_curtains.sh']}
 
     for key in toggle_dict:
         if toggle_dict[key] != cp.switchSetting(key):
@@ -57,9 +57,9 @@ def process_toggles(cp, toggle_dict, dmx):
                     dmx.clients[0].set_switch(False)
             elif key == "sing_step":
                 if toggle_dict[key] == 1:
-                    dmx.clients[0].set_switch(True)
+                    dmx.clients[2].set_switch(True)
                 else:
-                    dmx.clients[0].set_switch(False)
+                    dmx.clients[2].set_switch(False)
                     
 def process_switches(cp, mpd):
     """ process switches with dict of action. Remember last switch state"""
@@ -169,7 +169,9 @@ def handle_start(CP,mpl):
 
 def init_cp(CP):
     # dict of switch names we want to check for toggling (changed) since last call
-    toggles = {'data_field0':False, 'inst_field0':False, 'data_field2':False, 'swreg11':False, 'swreg10':False, 'swreg9':False,
+    toggles = {'data_field0':False, 'inst_field0':False,
+               'data_field2':False, 'swreg11':False,
+               'swreg10':False, 'swreg9':False,
                'sing_step':False,'sing_inst':False}
     # init toggles dict
     for key in toggles:
