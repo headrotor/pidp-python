@@ -1,21 +1,42 @@
 #EXTM3U
 
 #EXTINF:123, BFF.fm
-http://54.200.3.150:8232/listen.mp3
+#EXTART: Does this player support artist?
+#EXTALB: Does this player support album?
+http://stream.bff.fm/listen.mp3
 
 #EXTINF:123, KALX
-http://icecast.media.berkeley.edu:8000/kalx-128.mp3
+http://stream.kalx.berkeley.edu:8000/kalx-256.mp3
+
+#EXTINF:123, KZSU
+http://171.66.118.110:8080/kzsu-1-128.mp3
 
 #EXTINF:123, KFJC
-http://aac.kfjc.org:80/high
+http://aac.kfjc.org:80/
+
+#EXTINF:123, WMBR 
+http://wmbr.org:8000/hi
+
+#EXTINF:123, SF Community Radio
+http://stream.sfcommunityradio.org:8000/
+
+
+#EXTINF:123, NTS 1 (London)
+https://stream-relay-geo.ntslive.net/stream?t=1539219338631
+
+#EXTINF:123, NTS 2 (Los Angeles)
+https://stream-relay-geo.ntslive.net/stream2?t=1539219501752
+
+#EXTINF:123, WQXR
+http://q2stream.wqxr.org/q2
+
+#EXTINF:123, WKCR, Columbia University
+http://wkcr.streamguys1.com:80/live
 
 #EXTINF:123, WFMU
 http://stream0.wfmu.org/freeform-128k
 
-#EXTINF:123, KZSU
-http://kzsu-stream2.stanford.edu/kzsu-1-128.mp3
-
-#EXTINF:123, SOMA-FM Groovesalad
+#EXTINF:123, SomaFM Groove Salad
 http://ice1.somafm.com/groovesalad-128-mp3
 
 #EXTINF:123, Mutiny Radio
@@ -24,5 +45,14 @@ http://nthmost.net:8000/mutiny-studio
 #EXTINF:123, Radio Valencia
 http://live.str3am.com:3010/live
 
-#EXTINF:123, Radio Valencia
-http://live.str3am.com:3010/live
+#EXTINF:123, KCMP The Current, Minneapolis
+http://current.stream.publicradio.org/kcmp.mp3
+
+#EXTINF:123, dublab
+http://dublab.out.airtime.pro:8000/dublab_a
+
+#EXTINF:123, KXLU Los Angeles
+http://kxlu.streamguys1.com/kxlu-hi
+
+
+
